@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 500px;
+      padding: 15px;
+      font-family: Arial, sans-serif;
+      margin: 0;
+    }
+    
+    h2 {
+      margin: 0 0 15px 0;
+      color: #333;
+      font-size: 18px;
+    }
+    
+    #scanButton {
+      background-color: #0060df;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+    
+    #scanButton:hover {
+      background-color: #003eaa;
+    }
+    
+    #results {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    .input-item {
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .input-item div {
+      margin: 4px 0;
+      font-size: 13px;
+    }
+    
+    .label {
+      font-weight: bold;
+      color: #555;
+      display: inline-block;
+      width: 100px;
+    }
+    
+    .value {
+      color: #0060df;
+      word-break: break-all;
+    }
+    
+    .empty {
+      color: #999;
+      font-style: italic;
+    }
+    
+    #count {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Input Reader</h2>
+  <button id="scanButton">Scan Page for Inputs</button>
+  <div id="count"></div>
+  <div id="results"></div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
