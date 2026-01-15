@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Input Reader",
+  "version": "1.0",
+  "description": "Reads all input elements on a page and displays their id, type, and placeholder",
+  
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Read Inputs"
+  },
+  
+  "icons": {
+    "48": "icon.png"
+  }
+}
