@@ -5,7 +5,8 @@
   "description": "Reads all input elements on a page and displays their id, type, and placeholder",
   
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   
   "browser_action": {

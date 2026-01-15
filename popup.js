@@ -1,5 +1,5 @@
-// Static field mappings - customize these values
-const FIELD_MAPPINGS = {
+// Default field mappings
+const DEFAULT_MAPPINGS = {
   'email': 'your_email@example.com',
   'first_name': 'John',
   'last_name': 'Doe',
@@ -17,10 +17,9 @@ const FIELD_MAPPINGS = {
   'github_url': 'https://github.com/johndoe'
 };
 
+let FIELD_MAPPINGS = { ...DEFAULT_MAPPINGS };
+
 const fieldCategorizer = {
-  /**
-   * Categorize field using pattern matching
-   */
   categorize: (field) => {
     const patterns = {
       email: [/email/i, /e-mail/i],
@@ -51,9 +50,6 @@ const fieldCategorizer = {
     return null;
   },
 
-  /**
-   * Check if field is sensitive
-   */
   isSensitiveField: (field) => {
     const sensitiveTypes = ['password', 'hidden'];
     const sensitiveKeywords = [
@@ -86,10 +82,35 @@ const fieldCategorizer = {
 let scannedInputs = [];
 let detectedCategories = {};
 
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const tabName = tab.dataset.tab;
+    
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    tab.classList.add('active');
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+    
+    if (tabName === 'settings') {
+      loadSettingsUI();
+    }
+  });
+});
+
+// Load saved mappings on startup
+browser.storage.local.get('fieldMappings').then(data => {
+  if (data.fieldMappings) {
+    FIELD_MAPPINGS = data.fieldMappings;
+  }
+});
+
+// Scan button handler
 document.getElementById('scanButton').addEventListener('click', async () => {
   const button = document.getElementById('scanButton');
   button.disabled = true;
-  button.textContent = 'Scanning...';
+  button.textContent = '🔄 Scanning...';
   
   try {
     const results = await browser.tabs.executeScript({
@@ -99,7 +120,6 @@ document.getElementById('scanButton').addEventListener('click', async () => {
           const inputData = [];
           
           inputs.forEach((input, index) => {
-            // Get label if exists
             let label = '';
             if (input.id) {
               const labelEl = document.querySelector('label[for="' + input.id + '"]');
@@ -131,10 +151,10 @@ document.getElementById('scanButton').addEventListener('click', async () => {
     if (!inputs || inputs.length === 0) {
       displayResults(inputs, {});
       document.getElementById('fillButton').style.display = 'none';
+      document.getElementById('stats').style.display = 'none';
       return;
     }
     
-    // Categorize fields
     const categories = {};
     inputs.forEach(field => {
       const category = fieldCategorizer.categorize(field);
@@ -143,11 +163,9 @@ document.getElementById('scanButton').addEventListener('click', async () => {
       }
     });
     
-    // Store for filling later
     scannedInputs = inputs;
     detectedCategories = categories;
     
-    // Show fill button if there are categorized fields
     const fillableCount = Object.keys(categories).filter(
       fieldId => FIELD_MAPPINGS[categories[fieldId]]
     ).length;
@@ -159,24 +177,26 @@ document.getElementById('scanButton').addEventListener('click', async () => {
     }
     
     displayResults(inputs, categories);
+    displayStats(inputs.length, Object.keys(categories).length, fillableCount);
     
   } catch (err) {
     document.getElementById('results').innerHTML = 
-      '<div style="color: red;">Error: ' + err.message + '</div>';
+      `<div class="empty-state">
+        <p style="color: #ff4757;">❌ Error: ${err.message}</p>
+      </div>`;
   } finally {
     button.disabled = false;
-    button.textContent = 'Scan Page for Inputs';
+    button.textContent = '🔍 Scan Page';
   }
 });
 
-// Fill form button handler
+// Fill button handler
 document.getElementById('fillButton').addEventListener('click', async () => {
   const button = document.getElementById('fillButton');
   button.disabled = true;
-  button.textContent = 'Filling...';
+  button.textContent = '⏳ Filling...';
   
   try {
-    // Prepare fill data
     const fillData = {};
     scannedInputs.forEach(field => {
       const category = detectedCategories[field.fieldId];
@@ -188,7 +208,6 @@ document.getElementById('fillButton').addEventListener('click', async () => {
       }
     });
     
-    // Inject and execute fill script
     await browser.tabs.executeScript({
       code: `
         (function() {
@@ -199,14 +218,10 @@ document.getElementById('fillButton').addEventListener('click', async () => {
             try {
               const input = document.querySelector(data.selector);
               if (input && !input.disabled && !input.readOnly) {
-                // Set value
                 input.value = data.value;
-                
-                // Trigger events to ensure the page detects the change
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 input.dispatchEvent(new Event('change', { bubbles: true }));
                 input.dispatchEvent(new Event('blur', { bubbles: true }));
-                
                 filledCount++;
               }
             } catch (e) {
@@ -219,34 +234,45 @@ document.getElementById('fillButton').addEventListener('click', async () => {
       `
     });
     
-    button.textContent = '✓ Form Filled Successfully';
+    button.textContent = '✅ Filled Successfully';
     setTimeout(() => {
-      button.textContent = 'Fill Form with Mapped Values';
+      button.textContent = '✨ Fill Form';
       button.disabled = false;
     }, 2000);
     
   } catch (err) {
-    button.textContent = '✗ Fill Failed';
+    button.textContent = '❌ Fill Failed';
     console.error('Fill error:', err);
     setTimeout(() => {
-      button.textContent = 'Fill Form with Mapped Values';
+      button.textContent = '✨ Fill Form';
       button.disabled = false;
     }, 2000);
   }
 });
 
+function displayStats(total, categorized, fillable) {
+  document.getElementById('stats').style.display = 'flex';
+  document.getElementById('totalFields').textContent = total;
+  document.getElementById('categorizedFields').textContent = categorized;
+  document.getElementById('fillableFields').textContent = fillable;
+}
+
 function displayResults(inputs, categories) {
   const resultsDiv = document.getElementById('results');
-  const countDiv = document.getElementById('count');
   
   if (!inputs || inputs.length === 0) {
-    resultsDiv.innerHTML = '<div class="empty">No input elements found on this page.</div>';
-    countDiv.textContent = '';
+    resultsDiv.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 11l3 3L22 4"></path>
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+        </svg>
+        <p>No input fields found on this page</p>
+        <p style="font-size: 12px; color: #ccc;">Navigate to a form and click "Scan Page"</p>
+      </div>
+    `;
     return;
   }
-  
-  const categorizedCount = Object.keys(categories).length;
-  countDiv.textContent = `Found ${inputs.length} input element(s) | ${categorizedCount} categorized`;
   
   let html = '';
   inputs.forEach(input => {
@@ -255,19 +281,79 @@ function displayResults(inputs, categories) {
     const fillValue = category ? FIELD_MAPPINGS[category] || '' : '';
     
     html += `
-      <div class="input-item" style="${isSensitive ? 'border-left: 3px solid #ff4444;' : ''}">
-        <div><span class="label">Input #:</span><span class="value">${input.index}</span></div>
-        <div><span class="label">ID:</span><span class="value ${!input.id ? 'empty' : ''}">${input.id || '(none)'}</span></div>
-        <div><span class="label">Name:</span><span class="value ${!input.name ? 'empty' : ''}">${input.name || '(none)'}</span></div>
-        <div><span class="label">Type:</span><span class="value">${input.type}</span></div>
-        <div><span class="label">Placeholder:</span><span class="value ${!input.placeholder ? 'empty' : ''}">${input.placeholder || '(none)'}</span></div>
-        ${input.label ? `<div><span class="label">Label:</span><span class="value">${input.label}</span></div>` : ''}
-        ${category ? `<div><span class="label">Category:</span><span class="value" style="color: #00a400; font-weight: bold;">${category}</span></div>` : ''}
-        ${fillValue ? `<div><span class="label">Fill Value:</span><span class="value" style="color: #0060df; font-weight: bold;">${fillValue}</span></div>` : ''}
-        ${isSensitive ? `<div style="color: #ff4444; font-size: 11px; margin-top: 5px;">⚠️ Sensitive field (will not be auto-filled)</div>` : ''}
+      <div class="input-item ${isSensitive ? 'sensitive' : ''}">
+        <div class="field-header">
+          <span class="field-number">#${input.index}</span>
+          ${category ? `<span class="category-badge">${category.replace(/_/g, ' ')}</span>` : ''}
+        </div>
+        <div class="field-info">
+          ${input.id ? `<div class="field-row"><span class="label">ID:</span><span class="value">${input.id}</span></div>` : ''}
+          ${input.name ? `<div class="field-row"><span class="label">Name:</span><span class="value">${input.name}</span></div>` : ''}
+          <div class="field-row"><span class="label">Type:</span><span class="value">${input.type}</span></div>
+          ${input.placeholder ? `<div class="field-row"><span class="label">Placeholder:</span><span class="value">${input.placeholder}</span></div>` : ''}
+          ${input.label ? `<div class="field-row"><span class="label">Label:</span><span class="value">${input.label}</span></div>` : ''}
+          ${fillValue ? `<div class="field-row"><span class="label">Fill Value:</span><span class="value fill-value">${fillValue}</span></div>` : ''}
+        </div>
+        ${isSensitive ? `<div class="warning">⚠️ Sensitive field - will not be auto-filled</div>` : ''}
       </div>
     `;
   });
   
   resultsDiv.innerHTML = html;
 }
+
+// Settings UI
+function loadSettingsUI() {
+  const mappingList = document.getElementById('mappingList');
+  mappingList.innerHTML = '';
+  
+  Object.entries(FIELD_MAPPINGS).forEach(([category, value]) => {
+    addMappingRow(category, value);
+  });
+}
+
+function addMappingRow(category = '', value = '') {
+  const mappingList = document.getElementById('mappingList');
+  const row = document.createElement('div');
+  row.className = 'mapping-item';
+  row.innerHTML = `
+    <input type="text" class="category-input" placeholder="Category (e.g., email)" value="${category}">
+    <input type="text" class="value-input" placeholder="Value to fill" value="${value}">
+    <button class="delete-mapping" title="Delete">×</button>
+  `;
+  
+  row.querySelector('.delete-mapping').addEventListener('click', () => {
+    row.remove();
+  });
+  
+  mappingList.appendChild(row);
+}
+
+document.getElementById('addMappingBtn').addEventListener('click', () => {
+  addMappingRow();
+});
+
+document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+  const mappingItems = document.querySelectorAll('.mapping-item');
+  const newMappings = {};
+  
+  mappingItems.forEach(item => {
+    const category = item.querySelector('.category-input').value.trim();
+    const value = item.querySelector('.value-input').value.trim();
+    
+    if (category && value) {
+      newMappings[category] = value;
+    }
+  });
+  
+  FIELD_MAPPINGS = newMappings;
+  
+  await browser.storage.local.set({ fieldMappings: newMappings });
+  
+  const saveMessage = document.getElementById('saveMessage');
+  saveMessage.innerHTML = '<div class="success-message">✅ Settings saved successfully!</div>';
+  
+  setTimeout(() => {
+    saveMessage.innerHTML = '';
+  }, 3000);
+});
