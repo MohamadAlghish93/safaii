@@ -16,7 +16,7 @@
       font-size: 18px;
     }
     
-    #scanButton {
+    #scanButton, #fillButton {
       background-color: #0060df;
       color: white;
       border: none;
@@ -28,8 +28,22 @@
       width: 100%;
     }
     
-    #scanButton:hover {
+    #scanButton:hover, #fillButton:hover {
       background-color: #003eaa;
+    }
+    
+    #fillButton {
+      background-color: #00a400;
+      margin-top: 5px;
+    }
+    
+    #fillButton:hover {
+      background-color: #008000;
+    }
+    
+    #scanButton:disabled, #fillButton:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
     }
     
     #results {
@@ -77,6 +91,7 @@
 <body>
   <h2>Input Reader</h2>
   <button id="scanButton">Scan Page for Inputs</button>
+  <button id="fillButton" style="display: none;">Fill Form with Mapped Values</button>
   <div id="count"></div>
   <div id="results"></div>
   
